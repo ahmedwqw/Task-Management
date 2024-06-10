@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Management</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.1.3/css/bootstrap.min.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .task-card {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+            border: 1px solid #e0e0e0;
+        }
+        .task-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+        }
+        .task-card .card-title {
+            font-weight: bold;
+            text-align: center;
+            background-color: #9dacc0;
+            color: white;
+            padding: 10px;
+            border-radius: 5px 5px 0 0;
+        }
+        .task-card .card-body {
+            background-color: #ffffff;
+            padding: 20px;
+        }
+        .task-card .card-text {
+            font-size: 1rem;
+            margin: 10px 0;
+        }
+        .task-card .edit-btn, .task-card .save-btn, .task-card .delete-btn {
+            width: 100%;
+            margin-top: 10px;
+        }
+        .task-card .edit-btn {
+            background-color: #007bff;
+            border: none;
+        }
+        .task-card .save-btn {
+            background-color: #28a745;
+            border: none;
+        }
+        .task-card .delete-btn {
+            background-color: #dc3545;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1 class="text-center my-5">Task Management</h1>
+
+    <!-- Form to create new task -->
+    <form id="createTaskForm">
+        <div class="mb-3">
+            <label for="title" class="form-label">Title</label>
+            <input type="text" class="form-control" id="title" required>
+        </div>
+        <div class="mb-3">
+            <label for="description" class="form-label">Description</label>
+            <input type="text" class="form-control" id="description" required>
+        </div>
+
+        <div class="mb-3">
+            <label for="dueDate" class="form-label">Due Date</label>
+            <div class="input-group">
+                <input type="date" class="form-control" id="dueDate" required>
+                <div class="input-group-append">
+                    <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        <i class="fa fa-calendar"></i> <!-- Icon for the dropdown menu -->
+                    </button>
+                    <div class="dropdown-menu">
+                        <a class="dropdown-item" href="#" onclick="setDate('today')">Today</a>
+                        <a class="dropdown-item" href="#" onclick="setDate('tomorrow')">Tomorrow</a>
+                        <a class="dropdown-item" href="#" onclick="setDate('nextWeek')">Next Week (Sunday)</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Create Task</button>
+    </form>
+
+    <hr>
+
+    <!-- Task list -->
+    <div class="row row-cols-1 row-cols-md-3 g-4" id="taskList"></div>
+
+</div>
+<script src="/js/script.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.16.0/umd/popper.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+<script>
+    // Function to fetch tasks from the backend API
+    function fetchTasks() {
+        $.get("/api/tasks", function(tasks) {
+            // Clear existing task list
+            $("#taskList").empty();
+
+            // Populate task list
+            tasks.forEach(function(task) {
+                var taskCard = `
+                        <div class="col">
+                            <div class="card task-card" id="taskCard-${task.id}">
+                                <div class="card-body">
+                                    <h5 class="card-title">Task ID: ${task.id}</h5>
+                                    <div id="taskContent-${task.id}">
+                                        <p class="card-text fw-bold fs-3"> <span>${task.title}</span></p>
+                                        <p class="card-text text-center text-secondary"   "> <span>${task.description}</span></p>
+                                        <p class="card-text text-end fs-6"> <span>${task.dueDate}</span></p>
+                                    </div>
+                                    <div id="editTask-${task.id}" style="display: none;">
+                                        <input type="text" class="form-control mb-2" id="editTitle-${task.id}" value="${task.title}">
+                                        <input type="text" class="form-control mb-2" id="editDescription-${task.id}" value="${task.description}">
+                                        <input type="date" class="form-control mb-2" id="editDueDate-${task.id}" value="${task.dueDate}">
+                                    </div>
+                                    <button type="button" class="btn btn-primary edit-btn" onclick="toggleEdit(${task.id})">Edit</button>
+                                    <button type="button" class="btn btn-success save-btn" onclick="saveChanges(${task.id})" style="display: none;">Save</button>
+                                    <button type="button" class="btn btn-danger delete-btn" data-task-id="${task.id}">Delete</button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                $("#taskList").append(taskCard);
+            });
+        });
+    }
+
+    $("#createTaskForm").submit(function(event) {
+        event.preventDefault();
+        var formData = {
+            title: $("#title").val(),
+            description: $("#description").val(),
+            dueDate: new Date($("#dueDate").val() + " UTC").toISOString()
+        };
+        $.ajax({
+            url: "/api/tasks",
+            type: "POST",
+            contentType: "application/json",
+            data: JSON.stringify(formData),
+            success: function() {
+                fetchTasks();
+                $("#title").val("");
+                $("#description").val("");
+                $("#dueDate").val("");
+            }
+        });
+    });
+
+    $(document).on("click", ".delete-btn", function() {
+        var taskId = $(this).data("task-id");
+        $.ajax({
+            url: `/api/tasks/${taskId}`,
+            type: "DELETE",
+            success: function() {
+                fetchTasks();
+            }
+        });
+    });
+
+    function setDate(option) {
+        var dueDateInput = document.getElementById('dueDate');
+        var today = new Date();
+        switch (option) {
+            case 'today':
+                var todayFormatted = today.toISOString().split('T')[0];
+                dueDateInput.value = todayFormatted;
+                break;
+            case 'tomorrow':
+                var tomorrow = new Date(today);
+                tomorrow.setDate(today.getDate() + 1);
+                var tomorrowFormatted = tomorrow.toISOString().split('T')[0];
+                dueDateInput.value = tomorrowFormatted;
+                break;
+            case 'nextWeek':
+                var sunday = new Date(today);
+                sunday.setDate(today.getDate() + (7 - today.getDay()));
+                var sundayFormatted = sunday.toISOString().split('T')[0];
+                dueDateInput.value = sundayFormatted;
+                break;
+        }
+    }
+
+    function toggleEdit(taskId) {
+        $(`#taskContent-${taskId}`).toggle();
+        $(`#editTask-${taskId}`).toggle();
+        $(`#taskCard-${taskId} .edit-btn`).toggle();
+        $(`#taskCard-${taskId} .save-btn`).toggle();
+    }
+
+    function saveChanges(taskId) {
+        var formData = {
+            title: $(`#editTitle-${taskId}`).val(),
+            description: $(`#editDescription-${taskId}`).val(),
+            dueDate: $(`#editDueDate-${taskId}`).val()
+        };
+        $.ajax({
+            url: `/api/tasks/${taskId}`,
+            type: "PUT",
+            contentType: "application/json",
+            data: JSON.stringify(formData),
+            success: function() {
+                fetchTasks();
+                toggleEdit(taskId);
+            }
+        });
+    }
+
+    // Initial fetch of tasks
+    fetchTasks();
+</script>
+</body>
+</html>
